@@ -5,6 +5,7 @@ use crate::{
         state::{CopyModeSearchDirection, CopyModeSearchPrompt, CopyModeSelection, CopyModeState},
         App, AppState, Mode,
     },
+    config::CopyModeKeybinds,
     input::TerminalKey,
     selection::Selection,
     terminal::TerminalRuntimeRegistry,
@@ -109,10 +110,6 @@ impl AppState {
                 self.exit_copy_mode(terminal_runtimes, false);
                 return;
             }
-            KeyCode::Enter => {
-                self.exit_copy_mode(terminal_runtimes, true);
-                return;
-            }
             KeyCode::Left => {
                 self.move_copy_cursor(terminal_runtimes, 0, -1);
                 return;
@@ -148,52 +145,34 @@ impl AppState {
             _ => {}
         }
 
-        match (key.code, key.modifiers) {
-            (KeyCode::Char('b'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-                self.scroll_copy_mode_page(terminal_runtimes, -1, false)
-            }
-            (KeyCode::Char('f'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-                self.scroll_copy_mode_page(terminal_runtimes, 1, false)
-            }
-            (KeyCode::Char('u'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-                self.scroll_copy_mode_page(terminal_runtimes, -1, true)
-            }
-            (KeyCode::Char('d'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-                self.scroll_copy_mode_page(terminal_runtimes, 1, true)
-            }
-            _ => {}
-        }
-
-        let Some(ch) = copy_mode_command_char(key) else {
+        let Some(action) = resolve_copy_mode_action(&self.keybinds.copy_mode_keys, &key) else {
             return;
         };
-        match ch {
-            'q' => self.exit_copy_mode(terminal_runtimes, false),
-            'y' => self.exit_copy_mode(terminal_runtimes, true),
-            'v' | ' ' => self.begin_copy_mode_selection(terminal_runtimes),
-            'V' => self.select_copy_mode_line(terminal_runtimes),
-            'h' => self.move_copy_cursor(terminal_runtimes, 0, -1),
-            'j' => self.move_copy_cursor(terminal_runtimes, 1, 0),
-            'k' => self.move_copy_cursor(terminal_runtimes, -1, 0),
-            'l' => self.move_copy_cursor(terminal_runtimes, 0, 1),
-            'g' => self.copy_mode_history_top(terminal_runtimes),
-            'G' => self.copy_mode_history_bottom(terminal_runtimes),
-            '0' => self.copy_mode_line_edge(terminal_runtimes, false),
-            '$' => self.copy_mode_line_edge(terminal_runtimes, true),
-            '^' => self.copy_mode_first_non_blank(terminal_runtimes),
-            '/' => self.open_copy_mode_search(CopyModeSearchDirection::Forward),
-            '?' => self.open_copy_mode_search(CopyModeSearchDirection::Backward),
-            'n' => self.repeat_copy_mode_search(terminal_runtimes, false),
-            'N' => self.repeat_copy_mode_search(terminal_runtimes, true),
-            'w' => self.copy_mode_word_motion(terminal_runtimes, WordMotion::NextStart),
-            'b' => self.copy_mode_word_motion(terminal_runtimes, WordMotion::PreviousStart),
-            'e' => self.copy_mode_word_motion(terminal_runtimes, WordMotion::NextEnd),
-            'W' => self.copy_mode_word_motion(terminal_runtimes, WordMotion::NextBigStart),
-            'B' => self.copy_mode_word_motion(terminal_runtimes, WordMotion::PreviousBigStart),
-            'E' => self.copy_mode_word_motion(terminal_runtimes, WordMotion::NextBigEnd),
-            '{' => self.copy_mode_paragraph(terminal_runtimes, -1),
-            '}' => self.copy_mode_paragraph(terminal_runtimes, 1),
-            _ => {}
+        match action {
+            CopyModeAction::Exit { copy } => self.exit_copy_mode(terminal_runtimes, copy),
+            CopyModeAction::MoveCursor { rows, cols } => {
+                self.move_copy_cursor(terminal_runtimes, rows, cols)
+            }
+            CopyModeAction::WordMotion(motion) => {
+                self.copy_mode_word_motion(terminal_runtimes, motion)
+            }
+            CopyModeAction::FirstNonBlank => self.copy_mode_first_non_blank(terminal_runtimes),
+            CopyModeAction::LineEdge { end } => self.copy_mode_line_edge(terminal_runtimes, end),
+            CopyModeAction::Paragraph(direction) => {
+                self.copy_mode_paragraph(terminal_runtimes, direction)
+            }
+            CopyModeAction::HistoryTop => self.copy_mode_history_top(terminal_runtimes),
+            CopyModeAction::HistoryBottom => self.copy_mode_history_bottom(terminal_runtimes),
+            CopyModeAction::ScrollPage {
+                direction,
+                half_page,
+            } => self.scroll_copy_mode_page(terminal_runtimes, direction, half_page),
+            CopyModeAction::BeginSelection => self.begin_copy_mode_selection(terminal_runtimes),
+            CopyModeAction::SelectLine => self.select_copy_mode_line(terminal_runtimes),
+            CopyModeAction::OpenSearch(direction) => self.open_copy_mode_search(direction),
+            CopyModeAction::RepeatSearch { reverse } => {
+                self.repeat_copy_mode_search(terminal_runtimes, reverse)
+            }
         }
     }
 
@@ -924,6 +903,157 @@ enum WordMotion {
     NextBigStart,
     PreviousBigStart,
     NextBigEnd,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CopyModeAction {
+    Exit { copy: bool },
+    MoveCursor { rows: i16, cols: i16 },
+    WordMotion(WordMotion),
+    FirstNonBlank,
+    LineEdge { end: bool },
+    Paragraph(i16),
+    HistoryTop,
+    HistoryBottom,
+    ScrollPage { direction: i16, half_page: bool },
+    BeginSelection,
+    SelectLine,
+    OpenSearch(CopyModeSearchDirection),
+    RepeatSearch { reverse: bool },
+}
+
+/// Resolves a copy mode key press to an action, first against the raw key and
+/// then, for terminals that report shift+symbol as the base key without a
+/// shifted codepoint, against the US-layout shifted character. This mirrors
+/// the legacy `copy_mode_command_char`/`shifted_ascii_char` fallback so
+/// existing terminal behavior is preserved now that dispatch goes through
+/// configurable keybinds.
+fn resolve_copy_mode_action(
+    keybinds: &CopyModeKeybinds,
+    key: &TerminalKey,
+) -> Option<CopyModeAction> {
+    if let Some(action) = resolve_copy_mode_action_direct(keybinds, key) {
+        return Some(action);
+    }
+
+    let KeyCode::Char(ch) = key.code else {
+        return None;
+    };
+    if !ch.is_ascii() || key.modifiers != KeyModifiers::SHIFT || key.shifted_codepoint.is_some() {
+        return None;
+    }
+    let mapped = shifted_ascii_char(ch)?;
+    if mapped == ch {
+        return None;
+    }
+    let synthesized = TerminalKey::new(KeyCode::Char(mapped), KeyModifiers::empty())
+        .with_kind(key.kind);
+    resolve_copy_mode_action_direct(keybinds, &synthesized)
+}
+
+fn resolve_copy_mode_action_direct(
+    keybinds: &CopyModeKeybinds,
+    key: &TerminalKey,
+) -> Option<CopyModeAction> {
+    macro_rules! resolve {
+        ($field:ident, $action:expr) => {
+            if keybinds.$field.matches_direct_key(key) {
+                return Some($action);
+            }
+        };
+    }
+
+    resolve!(cancel, CopyModeAction::Exit { copy: false });
+    resolve!(copy, CopyModeAction::Exit { copy: true });
+    resolve!(
+        cursor_left,
+        CopyModeAction::MoveCursor { rows: 0, cols: -1 }
+    );
+    resolve!(cursor_down, CopyModeAction::MoveCursor { rows: 1, cols: 0 });
+    resolve!(
+        cursor_up,
+        CopyModeAction::MoveCursor { rows: -1, cols: 0 }
+    );
+    resolve!(
+        cursor_right,
+        CopyModeAction::MoveCursor { rows: 0, cols: 1 }
+    );
+    resolve!(
+        next_word,
+        CopyModeAction::WordMotion(WordMotion::NextStart)
+    );
+    resolve!(
+        previous_word,
+        CopyModeAction::WordMotion(WordMotion::PreviousStart)
+    );
+    resolve!(
+        next_word_end,
+        CopyModeAction::WordMotion(WordMotion::NextEnd)
+    );
+    resolve!(
+        next_big_word,
+        CopyModeAction::WordMotion(WordMotion::NextBigStart)
+    );
+    resolve!(
+        previous_big_word,
+        CopyModeAction::WordMotion(WordMotion::PreviousBigStart)
+    );
+    resolve!(
+        next_big_word_end,
+        CopyModeAction::WordMotion(WordMotion::NextBigEnd)
+    );
+    resolve!(first_non_blank, CopyModeAction::FirstNonBlank);
+    resolve!(start_of_line, CopyModeAction::LineEdge { end: false });
+    resolve!(end_of_line, CopyModeAction::LineEdge { end: true });
+    resolve!(next_paragraph, CopyModeAction::Paragraph(1));
+    resolve!(previous_paragraph, CopyModeAction::Paragraph(-1));
+    resolve!(scrollback_top, CopyModeAction::HistoryTop);
+    resolve!(scrollback_bottom, CopyModeAction::HistoryBottom);
+    resolve!(
+        page_up,
+        CopyModeAction::ScrollPage {
+            direction: -1,
+            half_page: false,
+        }
+    );
+    resolve!(
+        page_down,
+        CopyModeAction::ScrollPage {
+            direction: 1,
+            half_page: false,
+        }
+    );
+    resolve!(
+        half_page_up,
+        CopyModeAction::ScrollPage {
+            direction: -1,
+            half_page: true,
+        }
+    );
+    resolve!(
+        half_page_down,
+        CopyModeAction::ScrollPage {
+            direction: 1,
+            half_page: true,
+        }
+    );
+    resolve!(begin_selection, CopyModeAction::BeginSelection);
+    resolve!(select_line, CopyModeAction::SelectLine);
+    resolve!(
+        search_forward,
+        CopyModeAction::OpenSearch(CopyModeSearchDirection::Forward)
+    );
+    resolve!(
+        search_backward,
+        CopyModeAction::OpenSearch(CopyModeSearchDirection::Backward)
+    );
+    resolve!(search_next, CopyModeAction::RepeatSearch { reverse: false });
+    resolve!(
+        search_previous,
+        CopyModeAction::RepeatSearch { reverse: true }
+    );
+
+    None
 }
 
 fn first_non_blank_col(text: &str) -> Option<u16> {
@@ -2147,6 +2277,58 @@ mod tests {
 
         app.handle_copy_mode_key(TerminalKey::new(KeyCode::Char('y'), KeyModifiers::empty()));
         assert_eq!(copy_mode_clipboard_text(&mut app), "alp");
+        assert_eq!(app.state.mode, Mode::Terminal);
+        assert!(app.state.copy_mode.is_none());
+    }
+
+    #[tokio::test]
+    async fn copy_mode_custom_binding_drives_action_and_disables_default() {
+        let config: crate::config::Config = toml::from_str(
+            r#"
+[keys]
+copy_mode_cursor_right = "shift+l"
+"#,
+        )
+        .unwrap();
+        let (mut app, _) = app_with_copy_screen(b"alpha\n");
+        app.state.keybinds = config.keybinds();
+        app.state.enter_copy_mode(&app.terminal_runtimes);
+        if let Some(copy_mode) = app.state.copy_mode.as_mut() {
+            copy_mode.cursor_row = 0;
+            copy_mode.cursor_col = 0;
+        }
+
+        app.handle_copy_mode_key(TerminalKey::new(KeyCode::Char('l'), KeyModifiers::SHIFT));
+        assert_eq!(
+            app.state.copy_mode.as_ref().expect("copy mode").cursor_col,
+            1
+        );
+
+        app.handle_copy_mode_key(TerminalKey::new(KeyCode::Char('l'), KeyModifiers::empty()));
+        assert_eq!(
+            app.state.copy_mode.as_ref().expect("copy mode").cursor_col,
+            1
+        );
+    }
+
+    #[tokio::test]
+    async fn copy_mode_custom_cancel_binding() {
+        let config: crate::config::Config = toml::from_str(
+            r#"
+[keys]
+copy_mode_cancel = "ctrl+g"
+"#,
+        )
+        .unwrap();
+        let (mut app, _) = app_with_copy_screen(b"alpha\n");
+        app.state.keybinds = config.keybinds();
+        app.state.enter_copy_mode(&app.terminal_runtimes);
+
+        app.handle_copy_mode_key(TerminalKey::new(KeyCode::Char('q'), KeyModifiers::empty()));
+        assert_eq!(app.state.mode, Mode::Copy);
+        assert!(app.state.copy_mode.is_some());
+
+        app.handle_copy_mode_key(TerminalKey::new(KeyCode::Char('g'), KeyModifiers::CONTROL));
         assert_eq!(app.state.mode, Mode::Terminal);
         assert!(app.state.copy_mode.is_none());
     }
