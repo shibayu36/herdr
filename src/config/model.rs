@@ -444,13 +444,13 @@ pub struct KeysConfig {
     pub copy_mode_cancel: BindingConfig,
     /// Copy the selection and exit copy mode. Default: "y" or "enter".
     pub copy_mode_copy: BindingConfig,
-    /// Move the copy mode cursor left. Default: "h". Left arrow is always an alias.
+    /// Move the copy mode cursor left. Default: "h" or "left".
     pub copy_mode_cursor_left: BindingConfig,
-    /// Move the copy mode cursor down. Default: "j". Down arrow is always an alias.
+    /// Move the copy mode cursor down. Default: "j" or "down".
     pub copy_mode_cursor_down: BindingConfig,
-    /// Move the copy mode cursor up. Default: "k". Up arrow is always an alias.
+    /// Move the copy mode cursor up. Default: "k" or "up".
     pub copy_mode_cursor_up: BindingConfig,
-    /// Move the copy mode cursor right. Default: "l". Right arrow is always an alias.
+    /// Move the copy mode cursor right. Default: "l" or "right".
     pub copy_mode_cursor_right: BindingConfig,
     /// Move to the start of the next word in copy mode. Default: "w".
     pub copy_mode_next_word: BindingConfig,
@@ -466,9 +466,9 @@ pub struct KeysConfig {
     pub copy_mode_next_big_word_end: BindingConfig,
     /// Move to the first non-blank character of the line in copy mode. Default: "^".
     pub copy_mode_first_non_blank: BindingConfig,
-    /// Move to the start of the line in copy mode. Default: "0". Home is always an alias.
+    /// Move to the start of the line in copy mode. Default: "0" or "home".
     pub copy_mode_start_of_line: BindingConfig,
-    /// Move to the end of the line in copy mode. Default: "$". End is always an alias.
+    /// Move to the end of the line in copy mode. Default: "$" or "end".
     pub copy_mode_end_of_line: BindingConfig,
     /// Move to the next paragraph in copy mode. Default: "}".
     pub copy_mode_next_paragraph: BindingConfig,
@@ -478,9 +478,9 @@ pub struct KeysConfig {
     pub copy_mode_scrollback_top: BindingConfig,
     /// Jump to the bottom of scrollback in copy mode. Default: "shift+g".
     pub copy_mode_scrollback_bottom: BindingConfig,
-    /// Scroll up one page in copy mode. Default: "ctrl+b". PageUp is always an alias.
+    /// Scroll up one page in copy mode. Default: "ctrl+b" or "pageup".
     pub copy_mode_page_up: BindingConfig,
-    /// Scroll down one page in copy mode. Default: "ctrl+f". PageDown is always an alias.
+    /// Scroll down one page in copy mode. Default: "ctrl+f" or "pagedown".
     pub copy_mode_page_down: BindingConfig,
     /// Scroll up half a page in copy mode. Default: "ctrl+u".
     pub copy_mode_half_page_up: BindingConfig,
@@ -1232,10 +1232,10 @@ impl Default for KeysConfig {
             toggle_sidebar: BindingConfig::one("prefix+b"),
             copy_mode_cancel: BindingConfig::one("q"),
             copy_mode_copy: BindingConfig::Many(vec!["y".into(), "enter".into()]),
-            copy_mode_cursor_left: BindingConfig::one("h"),
-            copy_mode_cursor_down: BindingConfig::one("j"),
-            copy_mode_cursor_up: BindingConfig::one("k"),
-            copy_mode_cursor_right: BindingConfig::one("l"),
+            copy_mode_cursor_left: BindingConfig::Many(vec!["h".into(), "left".into()]),
+            copy_mode_cursor_down: BindingConfig::Many(vec!["j".into(), "down".into()]),
+            copy_mode_cursor_up: BindingConfig::Many(vec!["k".into(), "up".into()]),
+            copy_mode_cursor_right: BindingConfig::Many(vec!["l".into(), "right".into()]),
             copy_mode_next_word: BindingConfig::one("w"),
             copy_mode_previous_word: BindingConfig::one("b"),
             copy_mode_next_word_end: BindingConfig::one("e"),
@@ -1243,14 +1243,14 @@ impl Default for KeysConfig {
             copy_mode_previous_big_word: BindingConfig::one("shift+b"),
             copy_mode_next_big_word_end: BindingConfig::one("shift+e"),
             copy_mode_first_non_blank: BindingConfig::one("^"),
-            copy_mode_start_of_line: BindingConfig::one("0"),
-            copy_mode_end_of_line: BindingConfig::one("$"),
+            copy_mode_start_of_line: BindingConfig::Many(vec!["0".into(), "home".into()]),
+            copy_mode_end_of_line: BindingConfig::Many(vec!["$".into(), "end".into()]),
             copy_mode_next_paragraph: BindingConfig::one("}"),
             copy_mode_previous_paragraph: BindingConfig::one("{"),
             copy_mode_scrollback_top: BindingConfig::one("g"),
             copy_mode_scrollback_bottom: BindingConfig::one("shift+g"),
-            copy_mode_page_up: BindingConfig::one("ctrl+b"),
-            copy_mode_page_down: BindingConfig::one("ctrl+f"),
+            copy_mode_page_up: BindingConfig::Many(vec!["ctrl+b".into(), "pageup".into()]),
+            copy_mode_page_down: BindingConfig::Many(vec!["ctrl+f".into(), "pagedown".into()]),
             copy_mode_half_page_up: BindingConfig::one("ctrl+u"),
             copy_mode_half_page_down: BindingConfig::one("ctrl+d"),
             copy_mode_begin_selection: BindingConfig::Many(vec!["v".into(), "space".into()]),

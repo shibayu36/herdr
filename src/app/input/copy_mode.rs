@@ -84,65 +84,30 @@ impl AppState {
         if self.handle_copy_mode_search_prompt_key(terminal_runtimes, key.clone()) {
             return;
         }
-        match key.code {
-            KeyCode::Esc => {
-                let should_clear = self.copy_mode.as_ref().is_some_and(|copy_mode| {
-                    copy_mode.selection.is_some()
-                        || !copy_mode.search.query.is_empty()
-                        || !copy_mode.search.matches.is_empty()
-                        || copy_mode.search.direction.is_some()
-                });
-                if should_clear {
-                    self.clear_copy_mode_selection();
-                    if let Some(search) = self
-                        .copy_mode
-                        .as_mut()
-                        .map(|copy_mode| &mut copy_mode.search)
-                    {
-                        let geometry = search.geometry;
-                        *search = crate::app::state::CopyModeSearchState {
-                            geometry,
-                            ..Default::default()
-                        };
-                    }
-                    return;
+        if key.code == KeyCode::Esc {
+            let should_clear = self.copy_mode.as_ref().is_some_and(|copy_mode| {
+                copy_mode.selection.is_some()
+                    || !copy_mode.search.query.is_empty()
+                    || !copy_mode.search.matches.is_empty()
+                    || copy_mode.search.direction.is_some()
+            });
+            if should_clear {
+                self.clear_copy_mode_selection();
+                if let Some(search) = self
+                    .copy_mode
+                    .as_mut()
+                    .map(|copy_mode| &mut copy_mode.search)
+                {
+                    let geometry = search.geometry;
+                    *search = crate::app::state::CopyModeSearchState {
+                        geometry,
+                        ..Default::default()
+                    };
                 }
-                self.exit_copy_mode(terminal_runtimes, false);
                 return;
             }
-            KeyCode::Left => {
-                self.move_copy_cursor(terminal_runtimes, 0, -1);
-                return;
-            }
-            KeyCode::Down => {
-                self.move_copy_cursor(terminal_runtimes, 1, 0);
-                return;
-            }
-            KeyCode::Up => {
-                self.move_copy_cursor(terminal_runtimes, -1, 0);
-                return;
-            }
-            KeyCode::Right => {
-                self.move_copy_cursor(terminal_runtimes, 0, 1);
-                return;
-            }
-            KeyCode::PageUp => {
-                self.scroll_copy_mode_page(terminal_runtimes, -1, false);
-                return;
-            }
-            KeyCode::PageDown => {
-                self.scroll_copy_mode_page(terminal_runtimes, 1, false);
-                return;
-            }
-            KeyCode::Home => {
-                self.copy_mode_line_edge(terminal_runtimes, false);
-                return;
-            }
-            KeyCode::End => {
-                self.copy_mode_line_edge(terminal_runtimes, true);
-                return;
-            }
-            _ => {}
+            self.exit_copy_mode(terminal_runtimes, false);
+            return;
         }
 
         let Some(action) = resolve_copy_mode_action(&self.keybinds.copy_mode_keys, &key) else {
@@ -922,36 +887,8 @@ enum CopyModeAction {
     RepeatSearch { reverse: bool },
 }
 
-/// Resolves a copy mode key press to an action, first against the raw key and
-/// then, for terminals that report shift+symbol as the base key without a
-/// shifted codepoint, against the US-layout shifted character. This mirrors
-/// the legacy `copy_mode_command_char`/`shifted_ascii_char` fallback so
-/// existing terminal behavior is preserved now that dispatch goes through
-/// configurable keybinds.
+/// Resolves a copy mode key press to an action using the configured keybinds.
 fn resolve_copy_mode_action(
-    keybinds: &CopyModeKeybinds,
-    key: &TerminalKey,
-) -> Option<CopyModeAction> {
-    if let Some(action) = resolve_copy_mode_action_direct(keybinds, key) {
-        return Some(action);
-    }
-
-    let KeyCode::Char(ch) = key.code else {
-        return None;
-    };
-    if !ch.is_ascii() || key.modifiers != KeyModifiers::SHIFT || key.shifted_codepoint.is_some() {
-        return None;
-    }
-    let mapped = shifted_ascii_char(ch)?;
-    if mapped == ch {
-        return None;
-    }
-    let synthesized = TerminalKey::new(KeyCode::Char(mapped), KeyModifiers::empty())
-        .with_kind(key.kind);
-    resolve_copy_mode_action_direct(keybinds, &synthesized)
-}
-
-fn resolve_copy_mode_action_direct(
     keybinds: &CopyModeKeybinds,
     key: &TerminalKey,
 ) -> Option<CopyModeAction> {
