@@ -223,6 +223,12 @@ pub(crate) struct TerminalInputTarget {
 pub(crate) enum InputContext {
     Pane,
     Popup(crate::terminal::TerminalId),
+    NonTerminal(NonTerminalInputContext),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum NonTerminalInputContext {
+    Copy,
 }
 
 pub(crate) type InputSourceId = u64;
@@ -1671,6 +1677,8 @@ impl App {
             Some(InputContext::Popup(popup.terminal_id.clone()))
         } else if self.state.mode == Mode::Terminal {
             Some(InputContext::Pane)
+        } else if self.state.mode == Mode::Copy {
+            Some(InputContext::NonTerminal(NonTerminalInputContext::Copy))
         } else {
             None
         }
@@ -1714,6 +1722,10 @@ impl App {
                         tracked,
                     ) {
                         break;
+                    }
+                    if matches!(context, InputContext::NonTerminal(_)) {
+                        self.handle_non_terminal_key_headless(key.clone());
+                        continue;
                     }
                     if let Some(target) =
                         self.handle_terminal_key_headless_from(source_id, key.clone())
@@ -1794,7 +1806,10 @@ impl App {
                     match key.kind {
                         crossterm::event::KeyEventKind::Press => {
                             let initial_context = self.input_context();
-                            let target = if initial_context.is_some() {
+                            let target = if matches!(
+                                initial_context,
+                                Some(InputContext::Pane | InputContext::Popup(_))
+                            ) {
                                 self.handle_terminal_key_headless_from(source_id, key.clone())
                             } else {
                                 self.handle_non_terminal_key_headless(key.clone());
@@ -2093,6 +2108,89 @@ mod tests {
         assert!(app.input_leases.is_empty());
     }
 
+    #[tokio::test]
+    async fn copy_mode_press_moves_cursor_and_forwards_nothing() {
+        let (mut app, _pane_id, mut rx) = app_with_copy_mode();
+
+        app.route_client_events(
+            vec![raw_key(
+                KeyCode::Down,
+                KeyModifiers::empty(),
+                KeyEventKind::Press,
+            )],
+            false,
+        );
+
+        assert_eq!(app.state.mode, Mode::Copy);
+        assert_eq!(
+            app.state.copy_mode.as_ref().expect("copy mode").cursor_row,
+            1
+        );
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn copy_mode_repeat_after_press_moves_cursor_again() {
+        let (mut app, _pane_id, mut rx) = app_with_copy_mode();
+
+        app.route_client_events(
+            vec![
+                raw_key(KeyCode::Down, KeyModifiers::empty(), KeyEventKind::Press),
+                raw_key(KeyCode::Down, KeyModifiers::empty(), KeyEventKind::Repeat),
+            ],
+            false,
+        );
+
+        assert_eq!(app.state.mode, Mode::Copy);
+        assert_eq!(
+            app.state.copy_mode.as_ref().expect("copy mode").cursor_row,
+            2,
+            "repeat should move the copy-mode cursor a second time"
+        );
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn copy_mode_repeat_with_repeat_count_moves_cursor_by_count() {
+        let (mut app, _pane_id, mut rx) = app_with_copy_mode();
+
+        app.route_client_events(
+            vec![
+                raw_key(KeyCode::Down, KeyModifiers::empty(), KeyEventKind::Press),
+                crate::raw_input::RawInputEvent::Key(
+                    crate::input::TerminalKey::new(KeyCode::Down, KeyModifiers::empty())
+                        .with_kind(KeyEventKind::Repeat)
+                        .with_repeat_count(2),
+                ),
+            ],
+            false,
+        );
+
+        assert_eq!(
+            app.state.copy_mode.as_ref().expect("copy mode").cursor_row,
+            3,
+            "a single repeat_count=2 event should move the cursor two more times"
+        );
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn copy_mode_esc_repeat_does_not_leak_after_exit() {
+        let (mut app, _pane_id, mut rx) = app_with_copy_mode();
+
+        app.route_client_events(
+            vec![
+                raw_key(KeyCode::Esc, KeyModifiers::empty(), KeyEventKind::Press),
+                raw_key(KeyCode::Esc, KeyModifiers::empty(), KeyEventKind::Repeat),
+            ],
+            false,
+        );
+
+        assert_eq!(app.state.mode, Mode::Terminal);
+        assert!(app.state.copy_mode.is_none());
+        assert!(rx.try_recv().is_err());
+    }
+
     fn release_notes_state() -> state::ReleaseNotesState {
         state::ReleaseNotesState {
             version: "0.1.0".into(),
@@ -2111,6 +2209,41 @@ mod tests {
             api_rx,
             crate::api::EventHub::default(),
         )
+    }
+
+    /// Puts a fresh app into copy mode with a channel-backed pane runtime
+    /// showing several lines of text, and pins the copy-mode cursor to the
+    /// top row so vertical cursor movement is unambiguous.
+    fn app_with_copy_mode() -> (
+        App,
+        crate::layout::PaneId,
+        tokio::sync::mpsc::Receiver<bytes::Bytes>,
+    ) {
+        let mut app = test_app();
+        let mut ws = Workspace::test_new("test");
+        let pane_id = ws.tabs[0].root_pane;
+        let pane_infos = ws.tabs[0].layout.panes(Rect::new(0, 0, 20, 5));
+        let info = pane_infos[0].clone();
+        let (runtime, rx) = TerminalRuntime::test_with_channel_and_scrollback_bytes(
+            info.inner_rect.width,
+            info.inner_rect.height,
+            0,
+            b"line-0\r\nline-1\r\nline-2\r\nline-3\r\nline-4\r\n",
+            8,
+        );
+        ws.tabs[0].runtimes.insert(pane_id, runtime);
+        app.state.workspaces = vec![ws];
+        app.state.active = Some(0);
+        app.state.selected = 0;
+        app.state.mode = Mode::Terminal;
+        app.state.view.pane_infos = pane_infos;
+        app.state.enter_copy_mode(&app.terminal_runtimes);
+        app.state
+            .copy_mode
+            .as_mut()
+            .expect("copy mode entered")
+            .cursor_row = 0;
+        (app, pane_id, rx)
     }
 
     fn unique_temp_path(name: &str) -> std::path::PathBuf {
@@ -4049,6 +4182,54 @@ mod tests {
         assert!(!repeat_handled);
         assert!(!release_handled);
         assert!(next_press_handled);
+    }
+
+    #[tokio::test]
+    async fn monolithic_copy_mode_repeat_after_press_moves_cursor_again() {
+        let (mut app, _pane_id, mut rx) = app_with_copy_mode();
+
+        app.handle_raw_input_event(raw_key(
+            KeyCode::Down,
+            KeyModifiers::empty(),
+            KeyEventKind::Press,
+        ))
+        .await;
+        app.handle_raw_input_event(raw_key(
+            KeyCode::Down,
+            KeyModifiers::empty(),
+            KeyEventKind::Repeat,
+        ))
+        .await;
+
+        assert_eq!(app.state.mode, Mode::Copy);
+        assert_eq!(
+            app.state.copy_mode.as_ref().expect("copy mode").cursor_row,
+            2,
+            "repeat should move the copy-mode cursor a second time"
+        );
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn monolithic_copy_mode_esc_repeat_does_not_leak_after_exit() {
+        let (mut app, _pane_id, mut rx) = app_with_copy_mode();
+
+        app.handle_raw_input_event(raw_key(
+            KeyCode::Esc,
+            KeyModifiers::empty(),
+            KeyEventKind::Press,
+        ))
+        .await;
+        app.handle_raw_input_event(raw_key(
+            KeyCode::Esc,
+            KeyModifiers::empty(),
+            KeyEventKind::Repeat,
+        ))
+        .await;
+
+        assert_eq!(app.state.mode, Mode::Terminal);
+        assert!(app.state.copy_mode.is_none());
+        assert!(rx.try_recv().is_err());
     }
 
     #[test]
