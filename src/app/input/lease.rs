@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::app::{InputSourceId, TerminalInputContext, TerminalInputTarget};
+use crate::app::{InputContext, InputSourceId, TerminalInputTarget};
 use crate::input::{KeyIdentity, TerminalKey};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -26,7 +26,7 @@ pub(crate) struct ForwardedInputLease {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ConsumedInputLease {
-    ReprocessRepeats(TerminalInputContext),
+    ReprocessRepeats(InputContext),
     SuppressRepeats,
 }
 
@@ -39,7 +39,7 @@ pub(crate) enum InputLease {
 pub(crate) enum RepeatPlan {
     Forwarded(TerminalInputTarget),
     Reprocess {
-        context: TerminalInputContext,
+        context: InputContext,
         repetitions: u16,
         tracked: bool,
     },
@@ -76,8 +76,8 @@ impl InputLeaseTable {
         &mut self,
         lease_key: InputLeaseKey,
         key: &TerminalKey,
-        initial_context: Option<&TerminalInputContext>,
-        resulting_context: Option<&TerminalInputContext>,
+        initial_context: Option<&InputContext>,
+        resulting_context: Option<&InputContext>,
         target: Option<TerminalInputTarget>,
     ) -> RepeatPlan {
         if key.generated_text.is_some() && !key.has_physical_identity() {
@@ -114,7 +114,7 @@ impl InputLeaseTable {
         &mut self,
         lease_key: InputLeaseKey,
         key: &TerminalKey,
-        current_context: Option<&TerminalInputContext>,
+        current_context: Option<&InputContext>,
     ) -> RepeatPlan {
         match self.leases.get(&lease_key) {
             Some(InputLease::Forwarded(lease)) => {
@@ -151,8 +151,8 @@ impl InputLeaseTable {
     pub(crate) fn reprocess_allowed(
         &mut self,
         lease_key: InputLeaseKey,
-        expected_context: &TerminalInputContext,
-        current_context: Option<&TerminalInputContext>,
+        expected_context: &InputContext,
+        current_context: Option<&InputContext>,
         tracked: bool,
     ) -> bool {
         let allowed = current_context == Some(expected_context);
@@ -353,7 +353,7 @@ mod tests {
     fn physical_generated_text_keeps_native_repeat_lifecycle() {
         let key = physical_generated_slash(3);
         let lease_key = InputLeaseKey::new(7, &key);
-        let context = TerminalInputContext::Pane;
+        let context = InputContext::Pane;
         let forwarded_target = target();
         let mut leases = InputLeaseTable::default();
 
@@ -387,13 +387,13 @@ mod tests {
     fn consumed_grouped_physical_generated_text_reprocesses_repeats() {
         let key = physical_generated_slash(3);
         let lease_key = InputLeaseKey::new(7, &key);
-        let context = TerminalInputContext::Pane;
+        let context = InputContext::Pane;
         let mut leases = InputLeaseTable::default();
 
         assert!(matches!(
             leases.complete_press(lease_key, &key, Some(&context), Some(&context), None),
             RepeatPlan::Reprocess {
-                context: TerminalInputContext::Pane,
+                context: InputContext::Pane,
                 repetitions: 2,
                 tracked: true,
             }
@@ -406,7 +406,7 @@ mod tests {
             .with_generated_text(Some("/".to_owned()))
             .with_repeat_count(3);
         let lease_key = InputLeaseKey::new(7, &key);
-        let context = TerminalInputContext::Pane;
+        let context = InputContext::Pane;
         let mut leases = InputLeaseTable::default();
 
         assert!(matches!(
@@ -426,7 +426,7 @@ mod tests {
     fn new_semantic_press_recomputes_consumed_repeat_disposition() {
         let key = TerminalKey::new(KeyCode::Esc, KeyModifiers::empty()).with_repeat_count(3);
         let lease_key = InputLeaseKey::new(7, &key);
-        let context = TerminalInputContext::Pane;
+        let context = InputContext::Pane;
         let mut leases = InputLeaseTable::default();
         leases.insert_consumed(lease_key, ConsumedInputLease::SuppressRepeats);
 
@@ -436,7 +436,7 @@ mod tests {
         assert!(matches!(
             plan,
             RepeatPlan::Reprocess {
-                context: TerminalInputContext::Pane,
+                context: InputContext::Pane,
                 repetitions: 2,
                 tracked: true,
             }

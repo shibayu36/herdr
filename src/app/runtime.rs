@@ -152,7 +152,7 @@ impl App {
                         }
                         continue;
                     }
-                    let current_context = self.terminal_input_context();
+                    let current_context = self.input_context();
                     if !self.input_leases.reprocess_allowed(
                         lease_key,
                         &context,
@@ -189,9 +189,9 @@ impl App {
                 let key = self.input_leases.normalize_press(&lease_key, key);
                 match key.kind {
                     crossterm::event::KeyEventKind::Press => {
-                        let initial_context = self.terminal_input_context();
+                        let initial_context = self.input_context();
                         let target = self.handle_key(key.clone()).await;
-                        let resulting_context = self.terminal_input_context();
+                        let resulting_context = self.input_context();
                         let plan = self.input_leases.complete_press(
                             lease_key,
                             &key,
@@ -203,7 +203,7 @@ impl App {
                         true
                     }
                     crossterm::event::KeyEventKind::Repeat => {
-                        let current_context = self.terminal_input_context();
+                        let current_context = self.input_context();
                         let plan = self.input_leases.plan_repeat(
                             lease_key,
                             &key,

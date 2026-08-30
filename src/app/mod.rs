@@ -220,7 +220,7 @@ pub(crate) struct TerminalInputTarget {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum TerminalInputContext {
+pub(crate) enum InputContext {
     Pane,
     Popup(crate::terminal::TerminalId),
 }
@@ -1666,11 +1666,11 @@ impl App {
 // ---------------------------------------------------------------------------
 
 impl App {
-    pub(crate) fn terminal_input_context(&self) -> Option<TerminalInputContext> {
+    pub(crate) fn input_context(&self) -> Option<InputContext> {
         if let Some(popup) = &self.state.popup_pane {
-            Some(TerminalInputContext::Popup(popup.terminal_id.clone()))
+            Some(InputContext::Popup(popup.terminal_id.clone()))
         } else if self.state.mode == Mode::Terminal {
-            Some(TerminalInputContext::Pane)
+            Some(InputContext::Pane)
         } else {
             None
         }
@@ -1706,7 +1706,7 @@ impl App {
                         }
                         continue;
                     }
-                    let current_context = self.terminal_input_context();
+                    let current_context = self.input_context();
                     if !self.input_leases.reprocess_allowed(
                         lease_key,
                         &context,
@@ -1793,14 +1793,14 @@ impl App {
                     let key = self.input_leases.normalize_press(&lease_key, key);
                     match key.kind {
                         crossterm::event::KeyEventKind::Press => {
-                            let initial_context = self.terminal_input_context();
+                            let initial_context = self.input_context();
                             let target = if initial_context.is_some() {
                                 self.handle_terminal_key_headless_from(source_id, key.clone())
                             } else {
                                 self.handle_non_terminal_key_headless(key.clone());
                                 None
                             };
-                            let resulting_context = self.terminal_input_context();
+                            let resulting_context = self.input_context();
                             let plan = self.input_leases.complete_press(
                                 lease_key,
                                 &key,
@@ -1811,7 +1811,7 @@ impl App {
                             self.execute_repeat_plan_headless(source_id, lease_key, key, plan);
                         }
                         crossterm::event::KeyEventKind::Repeat => {
-                            let current_context = self.terminal_input_context();
+                            let current_context = self.input_context();
                             let plan = self.input_leases.plan_repeat(
                                 lease_key,
                                 &key,
