@@ -229,6 +229,9 @@ pub(crate) enum InputContext {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum NonTerminalInputContext {
     Copy,
+    Navigator,
+    Navigate,
+    KeybindHelp,
 }
 
 pub(crate) type InputSourceId = u64;
@@ -1679,6 +1682,16 @@ impl App {
             Some(InputContext::Pane)
         } else if self.state.mode == Mode::Copy {
             Some(InputContext::NonTerminal(NonTerminalInputContext::Copy))
+        } else if self.state.mode == Mode::Navigator {
+            Some(InputContext::NonTerminal(
+                NonTerminalInputContext::Navigator,
+            ))
+        } else if self.state.mode == Mode::Navigate {
+            Some(InputContext::NonTerminal(NonTerminalInputContext::Navigate))
+        } else if self.state.mode == Mode::KeybindHelp {
+            Some(InputContext::NonTerminal(
+                NonTerminalInputContext::KeybindHelp,
+            ))
         } else {
             None
         }
