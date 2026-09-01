@@ -315,9 +315,44 @@ pub struct NavigateKeybinds {
 }
 
 /// Parsed keybinds for Herdr actions.
+#[derive(Debug, Clone, Default)]
+pub struct CopyModeKeybinds {
+    pub cancel: ActionKeybinds,
+    pub copy: ActionKeybinds,
+    pub cursor_left: ActionKeybinds,
+    pub cursor_down: ActionKeybinds,
+    pub cursor_up: ActionKeybinds,
+    pub cursor_right: ActionKeybinds,
+    pub next_word: ActionKeybinds,
+    pub previous_word: ActionKeybinds,
+    pub next_word_end: ActionKeybinds,
+    pub next_big_word: ActionKeybinds,
+    pub previous_big_word: ActionKeybinds,
+    pub next_big_word_end: ActionKeybinds,
+    pub first_non_blank: ActionKeybinds,
+    pub start_of_line: ActionKeybinds,
+    pub end_of_line: ActionKeybinds,
+    pub next_paragraph: ActionKeybinds,
+    pub previous_paragraph: ActionKeybinds,
+    pub scrollback_top: ActionKeybinds,
+    pub scrollback_bottom: ActionKeybinds,
+    pub page_up: ActionKeybinds,
+    pub page_down: ActionKeybinds,
+    pub half_page_up: ActionKeybinds,
+    pub half_page_down: ActionKeybinds,
+    pub begin_selection: ActionKeybinds,
+    pub select_line: ActionKeybinds,
+    pub search_forward: ActionKeybinds,
+    pub search_backward: ActionKeybinds,
+    pub search_next: ActionKeybinds,
+    pub search_previous: ActionKeybinds,
+}
+
+/// Parsed keybinds for Herdr actions.
 #[derive(Debug, Clone)]
 pub struct Keybinds {
     pub navigate: NavigateKeybinds,
+    pub copy_mode_keys: CopyModeKeybinds,
     pub help: ActionKeybinds,
     pub settings: ActionKeybinds,
     pub new_workspace: ActionKeybinds,
@@ -425,6 +460,10 @@ impl BindingRegistry {
         normalize_key_combo(combo) == self.prefix_combo
     }
 
+    fn is_prefix_combo(&self, combo: KeyCombo) -> bool {
+        normalize_key_combo(combo) == self.prefix_combo
+    }
+
     fn conflict(&self, binding: &ResolvedBinding) -> Option<&RegisteredBinding> {
         match binding.trigger {
             BindingTrigger::Direct(combo) => self.direct.get(&normalize_key_combo(combo)),
@@ -470,6 +509,8 @@ impl Config {
         let mut navigate_registry = BindingRegistry::new(prefix, prefix_source);
         navigate_registry.reserve_direct(prefix, "keys.prefix", prefix_source);
         reserve_navigate_runtime_keys(&mut navigate_registry);
+        let mut copy_mode_registry = BindingRegistry::new(prefix, prefix_source);
+        reserve_copy_mode_runtime_keys(&mut copy_mode_registry);
 
         macro_rules! empty_action {
             () => {
@@ -486,6 +527,7 @@ impl Config {
                 pane_up: empty_action!(),
                 pane_right: empty_action!(),
             },
+            copy_mode_keys: CopyModeKeybinds::default(),
             help: empty_action!(),
             settings: empty_action!(),
             new_workspace: empty_action!(),
@@ -598,6 +640,19 @@ impl Config {
                 }
             };
         }
+        macro_rules! apply_copy_mode {
+            ($target:ident, $field:ident, $source:expr) => {
+                if field_source!($field) == $source {
+                    keybinds.copy_mode_keys.$target = parse_copy_mode_bindings(
+                        concat!("keys.", stringify!($field)),
+                        &self.keys.$field,
+                        &mut copy_mode_registry,
+                        &mut diagnostics,
+                        $source,
+                    );
+                }
+            };
+        }
 
         for source in [BindingSource::User, BindingSource::Default] {
             apply_navigate!(
@@ -614,6 +669,35 @@ impl Config {
             apply_navigate!(keybinds.navigate.pane_down, navigate_pane_down, source);
             apply_navigate!(keybinds.navigate.pane_up, navigate_pane_up, source);
             apply_navigate!(keybinds.navigate.pane_right, navigate_pane_right, source);
+            apply_copy_mode!(cancel, copy_mode_cancel, source);
+            apply_copy_mode!(copy, copy_mode_copy, source);
+            apply_copy_mode!(cursor_left, copy_mode_cursor_left, source);
+            apply_copy_mode!(cursor_down, copy_mode_cursor_down, source);
+            apply_copy_mode!(cursor_up, copy_mode_cursor_up, source);
+            apply_copy_mode!(cursor_right, copy_mode_cursor_right, source);
+            apply_copy_mode!(next_word, copy_mode_next_word, source);
+            apply_copy_mode!(previous_word, copy_mode_previous_word, source);
+            apply_copy_mode!(next_word_end, copy_mode_next_word_end, source);
+            apply_copy_mode!(next_big_word, copy_mode_next_big_word, source);
+            apply_copy_mode!(previous_big_word, copy_mode_previous_big_word, source);
+            apply_copy_mode!(next_big_word_end, copy_mode_next_big_word_end, source);
+            apply_copy_mode!(first_non_blank, copy_mode_first_non_blank, source);
+            apply_copy_mode!(start_of_line, copy_mode_start_of_line, source);
+            apply_copy_mode!(end_of_line, copy_mode_end_of_line, source);
+            apply_copy_mode!(next_paragraph, copy_mode_next_paragraph, source);
+            apply_copy_mode!(previous_paragraph, copy_mode_previous_paragraph, source);
+            apply_copy_mode!(scrollback_top, copy_mode_scrollback_top, source);
+            apply_copy_mode!(scrollback_bottom, copy_mode_scrollback_bottom, source);
+            apply_copy_mode!(page_up, copy_mode_page_up, source);
+            apply_copy_mode!(page_down, copy_mode_page_down, source);
+            apply_copy_mode!(half_page_up, copy_mode_half_page_up, source);
+            apply_copy_mode!(half_page_down, copy_mode_half_page_down, source);
+            apply_copy_mode!(begin_selection, copy_mode_begin_selection, source);
+            apply_copy_mode!(select_line, copy_mode_select_line, source);
+            apply_copy_mode!(search_forward, copy_mode_search_forward, source);
+            apply_copy_mode!(search_backward, copy_mode_search_backward, source);
+            apply_copy_mode!(search_next, copy_mode_search_next, source);
+            apply_copy_mode!(search_previous, copy_mode_search_previous, source);
             apply_action!(keybinds.help, help, source);
             apply_action!(keybinds.settings, settings, source);
             apply_action!(keybinds.new_workspace, new_workspace, source);
@@ -748,6 +832,14 @@ fn reserve_navigate_runtime_keys(registry: &mut BindingRegistry) {
     }
 }
 
+fn reserve_copy_mode_runtime_keys(registry: &mut BindingRegistry) {
+    registry.reserve_direct(
+        (KeyCode::Esc, KeyModifiers::empty()),
+        "copy mode reserved keys",
+        BindingSource::Default,
+    );
+}
+
 fn append_custom_command_bindings(
     config: &Config,
     keybinds: &mut Keybinds,
@@ -859,6 +951,42 @@ fn parse_navigate_bindings(
         match parse_binding_string(raw) {
             Some(ParsedBinding::Single(binding)) => {
                 if reject_navigate_binding(field, &binding, registry, diagnostics, source) {
+                    continue;
+                }
+                registry.register(&binding, field, source);
+                bindings.push(binding);
+            }
+            Some(ParsedBinding::Range(_)) => {
+                let diag = format!("range keybinding is only valid for indexed actions: {field} = {raw:?}; disabling binding");
+                warn!(message = %diag, "config diagnostic");
+                diagnostics.push(diag);
+            }
+            None => {
+                let diag = format!("invalid keybinding: {field} = {raw:?}; disabling binding");
+                warn!(message = %diag, "config diagnostic");
+                diagnostics.push(diag);
+            }
+        }
+    }
+    ActionKeybinds { bindings }
+}
+
+fn parse_copy_mode_bindings(
+    field: &'static str,
+    config: &BindingConfig,
+    registry: &mut BindingRegistry,
+    diagnostics: &mut Vec<String>,
+    source: BindingSource,
+) -> ActionKeybinds {
+    let mut bindings = Vec::new();
+    for raw in config.values() {
+        let raw = raw.trim();
+        if raw.is_empty() {
+            continue;
+        }
+        match parse_binding_string(raw) {
+            Some(ParsedBinding::Single(binding)) => {
+                if reject_copy_mode_binding(field, &binding, registry, diagnostics, source) {
                     continue;
                 }
                 registry.register(&binding, field, source);
@@ -1005,6 +1133,57 @@ fn reject_navigate_binding(
     if matches!(normalize_key_combo(binding.trigger.combo()).0, KeyCode::Esc) {
         let diag = format!(
             "navigate keybinding cannot use esc: {field} = {:?}; disabling binding",
+            binding.label
+        );
+        warn!(message = %diag, "config diagnostic");
+        diagnostics.push(diag);
+        return true;
+    }
+
+    if let Some(first_binding) = registry.conflict(binding) {
+        if source == BindingSource::Default && first_binding.source == BindingSource::User {
+            return true;
+        }
+        let first_field = &first_binding.field;
+        let diag = format!("{}: kept {first_field}, disabled {field}", binding.label);
+        warn!(message = %diag, "config diagnostic");
+        diagnostics.push(diag);
+        return true;
+    }
+
+    false
+}
+
+fn reject_copy_mode_binding(
+    field: &str,
+    binding: &ResolvedBinding,
+    registry: &BindingRegistry,
+    diagnostics: &mut Vec<String>,
+    source: BindingSource,
+) -> bool {
+    if binding.trigger.is_prefix() {
+        let diag = format!(
+            "copy mode keybinding must not include prefix: {field} = {:?}; disabling binding",
+            binding.label
+        );
+        warn!(message = %diag, "config diagnostic");
+        diagnostics.push(diag);
+        return true;
+    }
+
+    if matches!(normalize_key_combo(binding.trigger.combo()).0, KeyCode::Esc) {
+        let diag = format!(
+            "copy mode keybinding cannot use esc: {field} = {:?}; disabling binding",
+            binding.label
+        );
+        warn!(message = %diag, "config diagnostic");
+        diagnostics.push(diag);
+        return true;
+    }
+
+    if source == BindingSource::User && registry.is_prefix_combo(binding.trigger.combo()) {
+        let diag = format!(
+            "copy mode keybinding cannot use keys.prefix: {field} = {:?}; disabling binding",
             binding.label
         );
         warn!(message = %diag, "config diagnostic");
@@ -1264,6 +1443,10 @@ pub(crate) fn parse_key_combo(s: &str) -> Option<KeyCombo> {
         "right" => KeyCode::Right,
         "up" => KeyCode::Up,
         "down" => KeyCode::Down,
+        "home" => KeyCode::Home,
+        "end" => KeyCode::End,
+        "pageup" => KeyCode::PageUp,
+        "pagedown" => KeyCode::PageDown,
         "minus" => KeyCode::Char('-'),
         "comma" => KeyCode::Char(','),
         "period" => KeyCode::Char('.'),
@@ -2306,5 +2489,230 @@ width = "80%"
             .collect_diagnostics()
             .iter()
             .any(|diag| diag.contains("popup size on non-popup custom command")));
+    }
+
+    #[test]
+    fn copy_mode_defaults_bind_expected_keys() {
+        let config = Config::default();
+        let kb = config.keybinds().copy_mode_keys;
+
+        assert!(kb
+            .cancel
+            .matches_direct_key(&TerminalKey::new(KeyCode::Char('q'), KeyModifiers::empty())));
+        assert!(kb
+            .copy
+            .matches_direct_key(&TerminalKey::new(KeyCode::Char('y'), KeyModifiers::empty())));
+        assert!(kb
+            .copy
+            .matches_direct_key(&TerminalKey::new(KeyCode::Enter, KeyModifiers::empty())));
+        assert!(kb
+            .cursor_left
+            .matches_direct_key(&TerminalKey::new(KeyCode::Char('h'), KeyModifiers::empty())));
+        assert!(kb
+            .cursor_left
+            .matches_direct_key(&TerminalKey::new(KeyCode::Left, KeyModifiers::empty())));
+        assert!(kb
+            .cursor_down
+            .matches_direct_key(&TerminalKey::new(KeyCode::Down, KeyModifiers::empty())));
+        assert!(kb
+            .cursor_up
+            .matches_direct_key(&TerminalKey::new(KeyCode::Up, KeyModifiers::empty())));
+        assert!(kb
+            .cursor_right
+            .matches_direct_key(&TerminalKey::new(KeyCode::Right, KeyModifiers::empty())));
+        assert!(kb
+            .start_of_line
+            .matches_direct_key(&TerminalKey::new(KeyCode::Home, KeyModifiers::empty())));
+        assert!(kb
+            .end_of_line
+            .matches_direct_key(&TerminalKey::new(KeyCode::Char('$'), KeyModifiers::empty())));
+        assert!(kb
+            .end_of_line
+            .matches_direct_key(&TerminalKey::new(KeyCode::End, KeyModifiers::empty())));
+        assert!(kb
+            .page_up
+            .matches_direct_key(&TerminalKey::new(KeyCode::Char('b'), KeyModifiers::CONTROL)));
+        assert!(kb
+            .page_up
+            .matches_direct_key(&TerminalKey::new(KeyCode::PageUp, KeyModifiers::empty())));
+        assert!(kb
+            .page_down
+            .matches_direct_key(&TerminalKey::new(KeyCode::PageDown, KeyModifiers::empty())));
+        assert!(kb
+            .begin_selection
+            .matches_direct_key(&TerminalKey::new(KeyCode::Char('v'), KeyModifiers::empty())));
+        assert!(kb
+            .begin_selection
+            .matches_direct_key(&TerminalKey::new(KeyCode::Char(' '), KeyModifiers::empty())));
+
+        assert!(config.collect_diagnostics().is_empty());
+    }
+
+    #[test]
+    fn copy_mode_user_override_replaces_default_and_keeps_others() {
+        let config: Config = toml::from_str(
+            r#"
+[keys]
+copy_mode_cancel = "x"
+"#,
+        )
+        .unwrap();
+        let diagnostics = config.collect_diagnostics();
+        let kb = config.keybinds().copy_mode_keys;
+
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert!(kb
+            .cancel
+            .matches_direct_key(&TerminalKey::new(KeyCode::Char('x'), KeyModifiers::empty())));
+        assert!(!kb
+            .cancel
+            .matches_direct_key(&TerminalKey::new(KeyCode::Char('q'), KeyModifiers::empty())));
+        assert!(kb
+            .cursor_left
+            .matches_direct_key(&TerminalKey::new(KeyCode::Char('h'), KeyModifiers::empty())));
+    }
+
+    #[test]
+    fn copy_mode_empty_string_unbinds_action() {
+        let config: Config = toml::from_str(
+            r#"
+[keys]
+copy_mode_cancel = ""
+"#,
+        )
+        .unwrap();
+        let diagnostics = config.collect_diagnostics();
+        let kb = config.keybinds().copy_mode_keys;
+
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert!(kb.cancel.bindings.is_empty());
+    }
+
+    #[test]
+    fn copy_mode_user_binding_silently_displaces_default() {
+        let config: Config = toml::from_str(
+            r#"
+[keys]
+copy_mode_cancel = "y"
+"#,
+        )
+        .unwrap();
+        let diagnostics = config.collect_diagnostics();
+        let kb = config.keybinds().copy_mode_keys;
+
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert!(kb
+            .cancel
+            .matches_direct_key(&TerminalKey::new(KeyCode::Char('y'), KeyModifiers::empty())));
+        assert!(kb
+            .copy
+            .matches_direct_key(&TerminalKey::new(KeyCode::Enter, KeyModifiers::empty())));
+        assert!(!kb
+            .copy
+            .matches_direct_key(&TerminalKey::new(KeyCode::Char('y'), KeyModifiers::empty())));
+    }
+
+    #[test]
+    fn copy_mode_bindings_reject_prefix_syntax_and_prefix_key() {
+        let config: Config = toml::from_str(
+            r#"
+[keys]
+prefix = "ctrl+a"
+copy_mode_cancel = "prefix+q"
+copy_mode_copy = "ctrl+a"
+"#,
+        )
+        .unwrap();
+        let diagnostics = config.collect_diagnostics();
+        let kb = config.keybinds().copy_mode_keys;
+
+        assert!(kb.cancel.bindings.is_empty());
+        assert!(kb.copy.bindings.is_empty());
+        assert!(diagnostics.iter().any(|diag| {
+            diag.contains("copy mode keybinding must not include prefix")
+                && diag.contains("keys.copy_mode_cancel")
+        }));
+        assert!(diagnostics.iter().any(|diag| {
+            diag.contains("copy mode keybinding cannot use keys.prefix")
+                && diag.contains("keys.copy_mode_copy")
+        }));
+    }
+
+    #[test]
+    fn copy_mode_bindings_reject_only_esc_not_arrows_or_paging_keys() {
+        let config: Config = toml::from_str(
+            r#"
+[keys]
+copy_mode_cursor_left = ["esc", "pageup"]
+"#,
+        )
+        .unwrap();
+        let diagnostics = config.collect_diagnostics();
+        let kb = config.keybinds().copy_mode_keys;
+
+        // Esc stays reserved: it is dropped from the binding and reported.
+        assert!(diagnostics.iter().any(|diag| {
+            diag.contains("copy mode keybinding cannot use esc")
+                && diag.contains("keys.copy_mode_cursor_left")
+        }));
+        // Arrows/Home/End/PageUp/PageDown are no longer reserved, so "pageup"
+        // is accepted here even though it collides with copy_mode_page_up's
+        // own default; the user-configured cursor_left binding wins.
+        assert!(kb
+            .cursor_left
+            .matches_direct_key(&TerminalKey::new(KeyCode::PageUp, KeyModifiers::empty())));
+        assert!(!diagnostics
+            .iter()
+            .any(|diag| diag.contains("copy mode reserved keys")));
+    }
+
+    #[test]
+    fn copy_mode_bindings_allow_previously_reserved_keys_on_other_actions() {
+        let config: Config = toml::from_str(
+            r#"
+[keys]
+copy_mode_next_word = "left"
+"#,
+        )
+        .unwrap();
+        let diagnostics = config.collect_diagnostics();
+        let kb = config.keybinds().copy_mode_keys;
+
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert!(kb
+            .next_word
+            .matches_direct_key(&TerminalKey::new(KeyCode::Left, KeyModifiers::empty())));
+        // The default cursor_left binding for "left" is silently displaced by
+        // the user's next_word binding, per the standard user-wins rule; its
+        // other default alias "h" still works.
+        assert!(!kb
+            .cursor_left
+            .matches_direct_key(&TerminalKey::new(KeyCode::Left, KeyModifiers::empty())));
+        assert!(kb
+            .cursor_left
+            .matches_direct_key(&TerminalKey::new(KeyCode::Char('h'), KeyModifiers::empty())));
+    }
+
+    #[test]
+    fn copy_mode_conflicting_user_fields_keep_first_declared() {
+        let config: Config = toml::from_str(
+            r#"
+[keys]
+copy_mode_cancel = "ctrl+g"
+copy_mode_copy = "ctrl+g"
+"#,
+        )
+        .unwrap();
+        let diagnostics = config.collect_diagnostics();
+        let kb = config.keybinds().copy_mode_keys;
+
+        assert!(kb
+            .cancel
+            .matches_direct_key(&TerminalKey::new(KeyCode::Char('g'), KeyModifiers::CONTROL)));
+        assert!(kb.copy.bindings.is_empty());
+        assert!(diagnostics.iter().any(|diag| {
+            diag.contains("kept keys.copy_mode_cancel")
+                && diag.contains("disabled keys.copy_mode_copy")
+        }));
     }
 }
