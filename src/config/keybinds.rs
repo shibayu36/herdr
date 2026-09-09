@@ -1947,6 +1947,163 @@ navigate_workspace_down = "ctrl+a"
     }
 
     #[test]
+    fn copy_mode_default_bindings_cover_all_actions() {
+        let kb = Config::default().keybinds().copy_mode_keys;
+        for (bindings, expected) in [
+            (&kb.cancel, "q"),
+            (&kb.copy, "y / enter"),
+            (&kb.cursor_left, "h / left"),
+            (&kb.cursor_down, "j / down"),
+            (&kb.cursor_up, "k / up"),
+            (&kb.cursor_right, "l / right"),
+            (&kb.next_word, "w"),
+            (&kb.previous_word, "b"),
+            (&kb.next_word_end, "e"),
+            (&kb.next_big_word, "shift+w"),
+            (&kb.previous_big_word, "shift+b"),
+            (&kb.next_big_word_end, "shift+e"),
+            (&kb.first_non_blank, "^"),
+            (&kb.start_of_line, "0 / home"),
+            (&kb.end_of_line, "$ / end"),
+            (&kb.next_paragraph, "}"),
+            (&kb.previous_paragraph, "{"),
+            (&kb.scrollback_top, "g"),
+            (&kb.scrollback_bottom, "shift+g"),
+            (&kb.page_up, "pageup"),
+            (&kb.page_down, "ctrl+f / pagedown"),
+            (&kb.half_page_up, "ctrl+u"),
+            (&kb.half_page_down, "ctrl+d"),
+            (&kb.begin_selection, "v / space"),
+            (&kb.select_line, "shift+v"),
+            (&kb.search_forward, "/"),
+            (&kb.search_backward, "?"),
+            (&kb.search_next, "n"),
+            (&kb.search_previous, "shift+n"),
+        ] {
+            assert_eq!(bindings.label().as_deref(), Some(expected));
+        }
+    }
+
+    #[test]
+    fn copy_mode_bindings_can_be_customized() {
+        let config: Config = toml::from_str(
+            r#"
+[keys]
+copy_mode_cursor_down = "ctrl+n"
+copy_mode_cursor_up = ["ctrl+p", "up"]
+"#,
+        )
+        .unwrap();
+        let kb = config.keybinds().copy_mode_keys;
+        assert_eq!(kb.cursor_down.label().as_deref(), Some("ctrl+n"));
+        assert_eq!(kb.cursor_up.label().as_deref(), Some("ctrl+p / up"));
+        assert_eq!(kb.cursor_left.label().as_deref(), Some("h / left"));
+        assert!(config.collect_diagnostics().is_empty());
+    }
+
+    #[test]
+    fn copy_mode_bindings_can_be_unset() {
+        let config: Config = toml::from_str(
+            r#"
+[keys]
+copy_mode_half_page_up = ""
+copy_mode_half_page_down = []
+"#,
+        )
+        .unwrap();
+        let kb = config.keybinds().copy_mode_keys;
+        assert!(kb.half_page_up.bindings.is_empty());
+        assert!(kb.half_page_down.bindings.is_empty());
+        assert!(config.collect_diagnostics().is_empty());
+    }
+
+    #[test]
+    fn copy_mode_invalid_bindings_are_discarded_without_fallback() {
+        let config: Config = toml::from_str(
+            r#"
+[keys]
+copy_mode_begin_selection = ["ctrl+space", "bogus", "prefix+j", "esc", "alt+esc"]
+copy_mode_select_line = "bogus"
+"#,
+        )
+        .unwrap();
+        let kb = config.keybinds().copy_mode_keys;
+        assert_eq!(kb.begin_selection.label().as_deref(), Some("ctrl+space"));
+        assert!(kb.select_line.bindings.is_empty());
+        let diagnostics = config.collect_diagnostics();
+        assert_eq!(diagnostics.len(), 5);
+        assert!(diagnostics
+            .iter()
+            .any(|d| d.contains("must not include prefix")));
+        assert!(diagnostics.iter().any(|d| d.contains("cannot use esc")));
+    }
+
+    #[test]
+    fn copy_mode_bindings_are_independent_from_navigate_and_general_actions() {
+        let config: Config = toml::from_str(
+            r#"
+[keys]
+navigate_pane_up = "h"
+copy_mode_cursor_down = "h"
+focus_pane_up = "ctrl+n"
+copy_mode_search_next = "ctrl+n"
+"#,
+        )
+        .unwrap();
+        let kb = config.keybinds();
+        assert_eq!(kb.navigate.pane_up.label().as_deref(), Some("h"));
+        assert_eq!(kb.copy_mode_keys.cursor_down.label().as_deref(), Some("h"));
+        assert_eq!(kb.focus_pane_up.label().as_deref(), Some("ctrl+n"));
+        assert_eq!(
+            kb.copy_mode_keys.search_next.label().as_deref(),
+            Some("ctrl+n")
+        );
+        assert!(config.collect_diagnostics().is_empty());
+    }
+
+    #[test]
+    fn copy_mode_conflicting_user_bindings_keep_first_and_displace_defaults() {
+        let config: Config = toml::from_str(
+            r#"
+[keys]
+copy_mode_cursor_down = "h"
+copy_mode_cursor_up = "h"
+"#,
+        )
+        .unwrap();
+        let kb = config.keybinds().copy_mode_keys;
+        assert_eq!(kb.cursor_down.label().as_deref(), Some("h"));
+        assert!(kb.cursor_up.bindings.is_empty());
+        assert_eq!(kb.cursor_left.label().as_deref(), Some("left"));
+        let diagnostics = config.collect_diagnostics();
+        assert_eq!(diagnostics.len(), 1);
+        assert!(diagnostics[0]
+            .contains("kept keys.copy_mode_cursor_down, disabled keys.copy_mode_cursor_up"));
+    }
+
+    #[test]
+    fn copy_mode_prefix_rejection_applies_only_to_explicit_bindings() {
+        let config: Config = toml::from_str(
+            r#"
+[keys]
+prefix = "ctrl+a"
+copy_mode_cursor_down = ["ctrl+a", "down"]
+"#,
+        )
+        .unwrap();
+        let kb = config.keybinds().copy_mode_keys;
+        assert_eq!(kb.cursor_down.label().as_deref(), Some("down"));
+        assert!(config
+            .collect_diagnostics()
+            .iter()
+            .any(|d| d.contains("kept keys.prefix")
+                && d.contains("disabled keys.copy_mode_cursor_down")));
+        let config: Config = toml::from_str("[keys]\ncopy_mode_page_up = 'ctrl+b'").unwrap();
+        assert!(config.keybinds().copy_mode_keys.page_up.bindings.is_empty());
+        assert_eq!(config.collect_diagnostics().len(), 1);
+    }
+
+    #[test]
     fn custom_command_prefix_rhs_equal_to_configured_prefix_is_rejected() {
         let config: Config = toml::from_str(
             r#"

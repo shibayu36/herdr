@@ -266,4 +266,40 @@ mod tests {
         assert_eq!(filtered[0].1[0].1, "close pane");
         assert!(filter_keybind_help_groups(groups(), "panes").is_empty());
     }
+
+    #[test]
+    fn copy_mode_help_shows_each_action_and_effective_bindings() {
+        let config: crate::config::Config = toml::from_str(
+            r#"
+[keys]
+copy_mode_cursor_down = ["h", "ctrl+n"]
+copy_mode_copy = []
+"#,
+        )
+        .unwrap();
+        let groups = keybind_help_groups(&config.keybinds(), config.prefix_key());
+        let entries = &groups
+            .iter()
+            .find(|(name, _)| *name == "copy mode")
+            .expect("copy mode group")
+            .1;
+        assert_eq!(entries.len(), 30);
+        let labels: std::collections::HashSet<_> =
+            entries.iter().map(|(_, label)| label.as_ref()).collect();
+        assert_eq!(labels.len(), 30);
+        for (label, expected) in [
+            ("move cursor left", "left"),
+            ("copy selection and exit copy mode", "unset"),
+            ("clear selection/search, otherwise exit", "esc"),
+        ] {
+            assert_eq!(
+                entries
+                    .iter()
+                    .find(|(_, text)| text == label)
+                    .expect(label)
+                    .0,
+                expected
+            );
+        }
+    }
 }
