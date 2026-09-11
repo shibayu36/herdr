@@ -704,6 +704,180 @@
           "description": "Enter keyboard copy mode for the focused pane."
         },
         {
+          "key": "keys.copy_mode_cancel",
+          "type": "keybinding",
+          "default": "\"q\"",
+          "description": "Exit copy mode. Esc also exits when no selection or search is active."
+        },
+        {
+          "key": "keys.copy_mode_copy",
+          "type": "keybinding",
+          "default": "[\"y\", \"enter\"]",
+          "description": "Copy the selection and exit copy mode."
+        },
+        {
+          "key": "keys.copy_mode_cursor_left",
+          "type": "keybinding",
+          "default": "[\"h\", \"left\"]",
+          "description": "Move the copy mode cursor left."
+        },
+        {
+          "key": "keys.copy_mode_cursor_down",
+          "type": "keybinding",
+          "default": "[\"j\", \"down\"]",
+          "description": "Move the copy mode cursor down."
+        },
+        {
+          "key": "keys.copy_mode_cursor_up",
+          "type": "keybinding",
+          "default": "[\"k\", \"up\"]",
+          "description": "Move the copy mode cursor up."
+        },
+        {
+          "key": "keys.copy_mode_cursor_right",
+          "type": "keybinding",
+          "default": "[\"l\", \"right\"]",
+          "description": "Move the copy mode cursor right."
+        },
+        {
+          "key": "keys.copy_mode_next_word",
+          "type": "keybinding",
+          "default": "\"w\"",
+          "description": "Move to the start of the next word in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_previous_word",
+          "type": "keybinding",
+          "default": "\"b\"",
+          "description": "Move to the start of the previous word in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_next_word_end",
+          "type": "keybinding",
+          "default": "\"e\"",
+          "description": "Move to the end of the next word in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_next_big_word",
+          "type": "keybinding",
+          "default": "\"shift+w\"",
+          "description": "Move to the start of the next big word in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_previous_big_word",
+          "type": "keybinding",
+          "default": "\"shift+b\"",
+          "description": "Move to the start of the previous big word in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_next_big_word_end",
+          "type": "keybinding",
+          "default": "\"shift+e\"",
+          "description": "Move to the end of the next big word in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_first_non_blank",
+          "type": "keybinding",
+          "default": "\"^\"",
+          "description": "Move to the first non-blank character of the line in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_start_of_line",
+          "type": "keybinding",
+          "default": "[\"0\", \"home\"]",
+          "description": "Move to the start of the line in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_end_of_line",
+          "type": "keybinding",
+          "default": "[\"$\", \"end\"]",
+          "description": "Move to the end of the line in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_next_paragraph",
+          "type": "keybinding",
+          "default": "\"}\"",
+          "description": "Move to the next paragraph in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_previous_paragraph",
+          "type": "keybinding",
+          "default": "\"{\"",
+          "description": "Move to the previous paragraph in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_scrollback_top",
+          "type": "keybinding",
+          "default": "\"g\"",
+          "description": "Jump to the top of scrollback in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_scrollback_bottom",
+          "type": "keybinding",
+          "default": "\"shift+g\"",
+          "description": "Jump to the bottom of scrollback in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_page_up",
+          "type": "keybinding",
+          "default": "[\"ctrl+b\", \"pageup\"]",
+          "description": "Scroll up one page in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_page_down",
+          "type": "keybinding",
+          "default": "[\"ctrl+f\", \"pagedown\"]",
+          "description": "Scroll down one page in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_half_page_up",
+          "type": "keybinding",
+          "default": "\"ctrl+u\"",
+          "description": "Scroll up half a page in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_half_page_down",
+          "type": "keybinding",
+          "default": "\"ctrl+d\"",
+          "description": "Scroll down half a page in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_begin_selection",
+          "type": "keybinding",
+          "default": "[\"v\", \"space\"]",
+          "description": "Begin a selection at the copy mode cursor."
+        },
+        {
+          "key": "keys.copy_mode_select_line",
+          "type": "keybinding",
+          "default": "\"shift+v\"",
+          "description": "Begin a line-wise selection at the copy mode cursor."
+        },
+        {
+          "key": "keys.copy_mode_search_forward",
+          "type": "keybinding",
+          "default": "\"/\"",
+          "description": "Start a forward search in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_search_backward",
+          "type": "keybinding",
+          "default": "\"?\"",
+          "description": "Start a backward search in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_search_next",
+          "type": "keybinding",
+          "default": "\"n\"",
+          "description": "Repeat the last search in the same direction in copy mode."
+        },
+        {
+          "key": "keys.copy_mode_search_previous",
+          "type": "keybinding",
+          "default": "\"shift+n\"",
+          "description": "Repeat the last search in the opposite direction in copy mode."
+        },
+        {
           "key": "keys.focus_pane_left",
           "type": "keybinding",
           "default": "\"prefix+h\"",
