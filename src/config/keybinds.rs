@@ -1145,7 +1145,7 @@ fn reject_mode_binding(
     }
 
     if let Some(first_binding) = registry.conflict(binding) {
-        if source == BindingSource::Default && first_binding.source == BindingSource::User {
+        if source == BindingSource::Default {
             return true;
         }
         let first_field = &first_binding.field;
