@@ -198,6 +198,37 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # navigate_pane_up = "k"
 # navigate_pane_right = "l"     # right arrow always focuses the pane to the right
 
+# Copy-mode actions. These local shortcuts win while copy mode is open; do not use prefix+, esc, or the prefix key.
+# copy_mode_cancel = "q"
+# copy_mode_copy = ["y", "enter"]
+# copy_mode_cursor_left = ["h", "left"]
+# copy_mode_cursor_down = ["j", "down"]
+# copy_mode_cursor_up = ["k", "up"]
+# copy_mode_cursor_right = ["l", "right"]
+# copy_mode_next_word = "w"
+# copy_mode_previous_word = "b"
+# copy_mode_next_word_end = "e"
+# copy_mode_next_big_word = "shift+w"
+# copy_mode_previous_big_word = "shift+b"
+# copy_mode_next_big_word_end = "shift+e"
+# copy_mode_first_non_blank = "^"
+# copy_mode_start_of_line = ["0", "home"]
+# copy_mode_end_of_line = ["$", "end"]
+# copy_mode_next_paragraph = "}"
+# copy_mode_previous_paragraph = "{"
+# copy_mode_scrollback_top = "g"
+# copy_mode_scrollback_bottom = "shift+g"
+# copy_mode_page_up = ["ctrl+b", "pageup"]   # ctrl+b stays the prefix unless you change the prefix
+# copy_mode_page_down = ["ctrl+f", "pagedown"]
+# copy_mode_half_page_up = "ctrl+u"
+# copy_mode_half_page_down = "ctrl+d"
+# copy_mode_begin_selection = ["v", "space"]
+# copy_mode_select_line = "shift+v"
+# copy_mode_search_forward = "/"
+# copy_mode_search_backward = "?"
+# copy_mode_search_next = "n"
+# copy_mode_search_previous = "shift+n"
+
 # Custom commands use the same binding syntax.
 # type = "shell" runs detached in the background.
 # type = "pane" opens a temporary pane and closes it when the command exits.
