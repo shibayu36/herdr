@@ -192,6 +192,128 @@ pub(crate) fn keybind_help_groups(
                 entry(binding_label(&keybinds.last_pane), "last pane"),
             ],
         ),
+        (
+            "copy mode",
+            vec![
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.cancel),
+                    "exit copy mode",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.copy),
+                    "copy selection and exit copy mode",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.cursor_left),
+                    "move cursor left",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.cursor_down),
+                    "move cursor down",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.cursor_up),
+                    "move cursor up",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.cursor_right),
+                    "move cursor right",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.next_word),
+                    "move to next word start",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.previous_word),
+                    "move to previous word start",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.next_word_end),
+                    "move to next word end",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.next_big_word),
+                    "move to next big word start",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.previous_big_word),
+                    "move to previous big word start",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.next_big_word_end),
+                    "move to next big word end",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.first_non_blank),
+                    "move to first non-blank character",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.start_of_line),
+                    "move to start of line",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.end_of_line),
+                    "move to end of line",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.next_paragraph),
+                    "move to next paragraph",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.previous_paragraph),
+                    "move to previous paragraph",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.scrollback_top),
+                    "jump to top of scrollback",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.scrollback_bottom),
+                    "jump to bottom of scrollback",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.page_up),
+                    "scroll up one page",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.page_down),
+                    "scroll down one page",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.half_page_up),
+                    "scroll up half a page",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.half_page_down),
+                    "scroll down half a page",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.begin_selection),
+                    "begin selection",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.select_line),
+                    "begin line selection",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.search_forward),
+                    "start forward search",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.search_backward),
+                    "start backward search",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.search_next),
+                    "repeat search in the same direction",
+                ),
+                entry(
+                    binding_label(&keybinds.copy_mode_keys.search_previous),
+                    "repeat search in the opposite direction",
+                ),
+                entry("esc", "clear selection/search, otherwise exit"),
+            ],
+        ),
     ];
 
     if !keybinds.custom_commands.is_empty() {
@@ -265,5 +387,41 @@ mod tests {
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].1[0].1, "close pane");
         assert!(filter_keybind_help_groups(groups(), "panes").is_empty());
+    }
+
+    #[test]
+    fn copy_mode_help_shows_each_action_and_effective_bindings() {
+        let config: crate::config::Config = toml::from_str(
+            r#"
+[keys]
+copy_mode_cursor_down = ["h", "ctrl+n"]
+copy_mode_copy = []
+"#,
+        )
+        .unwrap();
+        let groups = keybind_help_groups(&config.keybinds(), config.prefix_key());
+        let entries = &groups
+            .iter()
+            .find(|(name, _)| *name == "copy mode")
+            .expect("copy mode group")
+            .1;
+        assert_eq!(entries.len(), 30);
+        let labels: std::collections::HashSet<_> =
+            entries.iter().map(|(_, label)| label.as_ref()).collect();
+        assert_eq!(labels.len(), 30);
+        for (label, expected) in [
+            ("move cursor left", "left"),
+            ("copy selection and exit copy mode", "unset"),
+            ("clear selection/search, otherwise exit", "esc"),
+        ] {
+            assert_eq!(
+                entries
+                    .iter()
+                    .find(|(_, text)| text == label)
+                    .expect(label)
+                    .0,
+                expected
+            );
+        }
     }
 }

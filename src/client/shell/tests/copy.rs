@@ -1,5 +1,23 @@
 use super::*;
 
+fn copy_mode_with_keys(settings: &str) -> ClientShellState {
+    let config: Config = toml::from_str(&format!("[keys]\n{settings}")).unwrap();
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&config));
+    state.set_snapshot(Box::new(snapshot()));
+    let mut pane_surface = surface();
+    pane_surface.panes[0].scroll = Some(crate::protocol::PaneSurfaceScrollMetrics {
+        offset_from_bottom: 10,
+        max_offset_from_bottom: 20,
+        viewport_rows: 2,
+    });
+    state.set_pane_surface(pane_surface);
+    state.compose(106, 20).expect("copy frame");
+    assert!(state.enter_copy_mode(&mut ClientShellInput::default()));
+    // Keep both axes away from their boundaries so no-op assertions are meaningful.
+    state.copy_mode.as_mut().expect("copy mode").cursor.col = 1;
+    state
+}
+
 #[test]
 fn pasted_help_and_copy_queries_strip_control_characters() {
     let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
@@ -1452,4 +1470,94 @@ fn word_selection_result_survives_focus_snapshot_lag() {
         .selection
         .as_ref()
         .is_some_and(crate::selection::Selection::is_visible));
+}
+
+#[test]
+fn copy_mode_custom_movement_replaces_both_default_keys() {
+    let mut state = copy_mode_with_keys("copy_mode_cursor_down = 'ctrl+n'");
+    let origin = state.copy_mode.as_ref().expect("copy mode").cursor;
+    for code in [KeyCode::Char('j'), KeyCode::Down] {
+        let result = state.handle_raw_events(vec![RawInputEvent::Key(
+            crate::input::TerminalKey::new(code, KeyModifiers::empty()),
+        )]);
+        assert!(result.actions.is_empty());
+        assert_eq!(state.copy_mode.as_ref().expect("copy mode").cursor, origin);
+    }
+    state.handle_raw_events(vec![RawInputEvent::Key(crate::input::TerminalKey::new(
+        KeyCode::Char('n'),
+        KeyModifiers::CONTROL,
+    ))]);
+    assert_eq!(
+        state.copy_mode.as_ref().expect("copy mode").cursor.row,
+        origin.row + 1
+    );
+}
+
+#[test]
+fn copy_mode_unbinding_disables_actions() {
+    for (field, code) in [
+        ("cursor_left", KeyCode::Left),
+        ("next_word", KeyCode::Char('w')),
+        ("copy", KeyCode::Enter),
+    ] {
+        let mut state = copy_mode_with_keys(&format!("copy_mode_{field} = []"));
+        let origin = state.copy_mode.as_ref().expect("copy mode").cursor;
+        let result = state.handle_raw_events(vec![RawInputEvent::Key(
+            crate::input::TerminalKey::new(code, KeyModifiers::empty()),
+        )]);
+        assert!(result.actions.is_empty(), "{field}: {:?}", result.actions);
+        assert!(result.requests.is_empty(), "{field}: {:?}", result.requests);
+        assert_eq!(state.mode, ClientShellMode::Copy, "{field}");
+        assert_eq!(
+            state.copy_mode.as_ref().expect("copy mode").cursor,
+            origin,
+            "{field}"
+        );
+    }
+}
+
+#[test]
+fn copy_mode_unbound_keys_do_not_trigger_normal_actions() {
+    let mut state = copy_mode_with_keys(
+        "new_tab = 'ctrl+n'\n[[keys.command]]\nkey = 'ctrl+p'\ncommand = 'echo no'",
+    );
+    for ch in ['n', 'p'] {
+        let result = state.handle_raw_events(vec![RawInputEvent::Key(
+            crate::input::TerminalKey::new(KeyCode::Char(ch), KeyModifiers::CONTROL),
+        )]);
+        assert!(result.actions.is_empty());
+        assert!(result.requests.is_empty());
+        assert_eq!(state.mode, ClientShellMode::Copy);
+    }
+}
+
+#[test]
+fn copy_mode_cancel_binding_is_text_in_search_prompt() {
+    let mut state = copy_mode_with_keys("copy_mode_cancel = 'x'");
+    for ch in ['/', 'x'] {
+        state.handle_raw_events(vec![RawInputEvent::Key(crate::input::TerminalKey::new(
+            KeyCode::Char(ch),
+            KeyModifiers::empty(),
+        ))]);
+    }
+    assert_eq!(
+        state
+            .copy_mode
+            .as_ref()
+            .expect("copy mode")
+            .search_prompt
+            .as_ref()
+            .expect("prompt")
+            .query,
+        "x"
+    );
+    let result = state.handle_raw_events(vec![RawInputEvent::Key(crate::input::TerminalKey::new(
+        KeyCode::Enter,
+        KeyModifiers::empty(),
+    ))]);
+    assert!(
+        matches!(&result.actions[..], [ClientShellAction::Endpoint { request, .. }]
+        if matches!(&request.method, crate::api::schema::Method::PaneCopySearch(params) if params.query == "x"))
+    );
+    assert_eq!(state.mode, ClientShellMode::Copy);
 }
