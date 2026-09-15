@@ -1453,3 +1453,93 @@ fn word_selection_result_survives_focus_snapshot_lag() {
         .as_ref()
         .is_some_and(crate::selection::Selection::is_visible));
 }
+
+fn copy_mode_surface() -> PaneSurfaceFrame {
+    let mut pane_surface = surface();
+    pane_surface.panes[0].scroll = Some(crate::protocol::PaneSurfaceScrollMetrics {
+        offset_from_bottom: 0,
+        max_offset_from_bottom: 0,
+        viewport_rows: 2,
+    });
+    pane_surface
+}
+
+#[test]
+fn copy_mode_custom_cancel_binding_replaces_the_default_key() {
+    let config: Config = toml::from_str(
+        r#"
+[keys]
+copy_mode_cancel = "x"
+"#,
+    )
+    .expect("config");
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&config));
+    state.set_snapshot(Box::new(snapshot()));
+    state.set_pane_surface(copy_mode_surface());
+    state.compose(106, 20).expect("composed frame");
+    let mut enter = ClientShellInput::default();
+    state.record_binding(
+        crate::input::KeybindMatch::Action(crate::input::KeybindAction::CopyMode),
+        &mut enter,
+    );
+    assert_eq!(state.mode, ClientShellMode::Copy);
+
+    state.handle_raw_events(vec![RawInputEvent::Key(crate::input::TerminalKey::new(
+        KeyCode::Char('q'),
+        KeyModifiers::empty(),
+    ))]);
+    assert_eq!(state.mode, ClientShellMode::Copy);
+
+    state.handle_raw_events(vec![RawInputEvent::Key(crate::input::TerminalKey::new(
+        KeyCode::Char('x'),
+        KeyModifiers::empty(),
+    ))]);
+    assert_eq!(state.mode, ClientShellMode::Terminal);
+    assert!(state.copy_mode.is_none());
+}
+
+#[test]
+fn copy_mode_custom_cursor_binding_accepts_modifier_keys() {
+    let config: Config = toml::from_str(
+        r#"
+[keys]
+copy_mode_cursor_up = "ctrl+p"
+"#,
+    )
+    .expect("config");
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&config));
+    state.set_snapshot(Box::new(snapshot()));
+    state.set_pane_surface(copy_mode_surface());
+    state.compose(106, 20).expect("composed frame");
+    let mut enter = ClientShellInput::default();
+    state.record_binding(
+        crate::input::KeybindMatch::Action(crate::input::KeybindAction::CopyMode),
+        &mut enter,
+    );
+    let origin = state.copy_mode.as_ref().expect("copy mode").cursor;
+    assert!(origin.row > 0);
+
+    state.handle_raw_events(vec![RawInputEvent::Key(crate::input::TerminalKey::new(
+        KeyCode::Char('k'),
+        KeyModifiers::empty(),
+    ))]);
+    assert_eq!(
+        state
+            .copy_mode
+            .as_ref()
+            .map(|copy_mode| copy_mode.cursor.row),
+        Some(origin.row)
+    );
+
+    state.handle_raw_events(vec![RawInputEvent::Key(crate::input::TerminalKey::new(
+        KeyCode::Char('p'),
+        KeyModifiers::CONTROL,
+    ))]);
+    assert_eq!(
+        state
+            .copy_mode
+            .as_ref()
+            .map(|copy_mode| copy_mode.cursor.row),
+        Some(origin.row - 1)
+    );
+}

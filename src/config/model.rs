@@ -450,6 +450,64 @@ pub struct KeysConfig {
     pub resize_pane_right: BindingConfig,
     /// Toggle sidebar collapse. Default: "prefix+b"
     pub toggle_sidebar: BindingConfig,
+    /// Exit copy mode. Default: "q". Esc is always available.
+    pub copy_mode_cancel: BindingConfig,
+    /// Copy the selection and exit copy mode. Default: "y" or "enter".
+    pub copy_mode_copy: BindingConfig,
+    /// Move the copy mode cursor left. Default: "h" or "left".
+    pub copy_mode_cursor_left: BindingConfig,
+    /// Move the copy mode cursor down. Default: "j" or "down".
+    pub copy_mode_cursor_down: BindingConfig,
+    /// Move the copy mode cursor up. Default: "k" or "up".
+    pub copy_mode_cursor_up: BindingConfig,
+    /// Move the copy mode cursor right. Default: "l" or "right".
+    pub copy_mode_cursor_right: BindingConfig,
+    /// Move to the start of the next word in copy mode. Default: "w".
+    pub copy_mode_next_word: BindingConfig,
+    /// Move to the start of the previous word in copy mode. Default: "b".
+    pub copy_mode_previous_word: BindingConfig,
+    /// Move to the end of the next word in copy mode. Default: "e".
+    pub copy_mode_next_word_end: BindingConfig,
+    /// Move to the start of the next WORD in copy mode. Default: "shift+w".
+    pub copy_mode_next_big_word: BindingConfig,
+    /// Move to the start of the previous WORD in copy mode. Default: "shift+b".
+    pub copy_mode_previous_big_word: BindingConfig,
+    /// Move to the end of the next WORD in copy mode. Default: "shift+e".
+    pub copy_mode_next_big_word_end: BindingConfig,
+    /// Move to the first non-blank character of the line in copy mode. Default: "^".
+    pub copy_mode_first_non_blank: BindingConfig,
+    /// Move to the start of the line in copy mode. Default: "0" or "home".
+    pub copy_mode_start_of_line: BindingConfig,
+    /// Move to the end of the line in copy mode. Default: "$" or "end".
+    pub copy_mode_end_of_line: BindingConfig,
+    /// Move to the next paragraph in copy mode. Default: "}".
+    pub copy_mode_next_paragraph: BindingConfig,
+    /// Move to the previous paragraph in copy mode. Default: "{".
+    pub copy_mode_previous_paragraph: BindingConfig,
+    /// Jump to the top of scrollback in copy mode. Default: "g".
+    pub copy_mode_scrollback_top: BindingConfig,
+    /// Jump to the bottom of scrollback in copy mode. Default: "shift+g".
+    pub copy_mode_scrollback_bottom: BindingConfig,
+    /// Scroll up one page in copy mode. Default: "ctrl+b" or "pageup".
+    pub copy_mode_page_up: BindingConfig,
+    /// Scroll down one page in copy mode. Default: "ctrl+f" or "pagedown".
+    pub copy_mode_page_down: BindingConfig,
+    /// Scroll up half a page in copy mode. Default: "ctrl+u".
+    pub copy_mode_half_page_up: BindingConfig,
+    /// Scroll down half a page in copy mode. Default: "ctrl+d".
+    pub copy_mode_half_page_down: BindingConfig,
+    /// Begin a selection at the copy mode cursor. Default: "v" or "space".
+    pub copy_mode_begin_selection: BindingConfig,
+    /// Begin a line-wise selection at the copy mode cursor. Default: "shift+v".
+    pub copy_mode_select_line: BindingConfig,
+    /// Start a forward search in copy mode. Default: "/".
+    pub copy_mode_search_forward: BindingConfig,
+    /// Start a backward search in copy mode. Default: "?".
+    pub copy_mode_search_backward: BindingConfig,
+    /// Jump to the next search match in copy mode. Default: "n".
+    pub copy_mode_search_next: BindingConfig,
+    /// Jump to the previous search match in copy mode. Default: "shift+n".
+    pub copy_mode_search_previous: BindingConfig,
     /// Optional indexed shortcuts expanded over number keys 1-9.
     pub indexed: IndexedKeysConfig,
     /// Prefix-mode custom command bindings.
@@ -581,6 +639,64 @@ pub(crate) struct KeysConfigOverlay {
     #[serde(skip_serializing_if = "Option::is_none")]
     toggle_sidebar: Option<BindingConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_cancel: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_copy: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_cursor_left: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_cursor_down: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_cursor_up: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_cursor_right: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_next_word: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_previous_word: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_next_word_end: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_next_big_word: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_previous_big_word: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_next_big_word_end: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_first_non_blank: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_start_of_line: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_end_of_line: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_next_paragraph: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_previous_paragraph: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_scrollback_top: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_scrollback_bottom: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_page_up: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_page_down: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_half_page_up: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_half_page_down: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_begin_selection: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_select_line: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_search_forward: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_search_backward: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_search_next: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_mode_search_previous: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     indexed: Option<IndexedKeysConfig>,
     #[serde(skip_serializing)]
     command: Option<Vec<CommandKeybindConfig>>,
@@ -668,6 +784,35 @@ impl<'de> Deserialize<'de> for KeysConfig {
         apply_field!(resize_pane_up);
         apply_field!(resize_pane_right);
         apply_field!(toggle_sidebar);
+        apply_field!(copy_mode_cancel);
+        apply_field!(copy_mode_copy);
+        apply_field!(copy_mode_cursor_left);
+        apply_field!(copy_mode_cursor_down);
+        apply_field!(copy_mode_cursor_up);
+        apply_field!(copy_mode_cursor_right);
+        apply_field!(copy_mode_next_word);
+        apply_field!(copy_mode_previous_word);
+        apply_field!(copy_mode_next_word_end);
+        apply_field!(copy_mode_next_big_word);
+        apply_field!(copy_mode_previous_big_word);
+        apply_field!(copy_mode_next_big_word_end);
+        apply_field!(copy_mode_first_non_blank);
+        apply_field!(copy_mode_start_of_line);
+        apply_field!(copy_mode_end_of_line);
+        apply_field!(copy_mode_next_paragraph);
+        apply_field!(copy_mode_previous_paragraph);
+        apply_field!(copy_mode_scrollback_top);
+        apply_field!(copy_mode_scrollback_bottom);
+        apply_field!(copy_mode_page_up);
+        apply_field!(copy_mode_page_down);
+        apply_field!(copy_mode_half_page_up);
+        apply_field!(copy_mode_half_page_down);
+        apply_field!(copy_mode_begin_selection);
+        apply_field!(copy_mode_select_line);
+        apply_field!(copy_mode_search_forward);
+        apply_field!(copy_mode_search_backward);
+        apply_field!(copy_mode_search_next);
+        apply_field!(copy_mode_search_previous);
         apply_field!(indexed);
         apply_field!(command);
 
@@ -772,6 +917,83 @@ impl KeysConfig {
         copy_effective_action_field!(resize_pane_up, keybinds.resize_pane_up);
         copy_effective_action_field!(resize_pane_right, keybinds.resize_pane_right);
         copy_effective_action_field!(toggle_sidebar, keybinds.toggle_sidebar);
+        copy_effective_action_field!(copy_mode_cancel, keybinds.copy_mode_keys.cancel);
+        copy_effective_action_field!(copy_mode_copy, keybinds.copy_mode_keys.copy);
+        copy_effective_action_field!(copy_mode_cursor_left, keybinds.copy_mode_keys.cursor_left);
+        copy_effective_action_field!(copy_mode_cursor_down, keybinds.copy_mode_keys.cursor_down);
+        copy_effective_action_field!(copy_mode_cursor_up, keybinds.copy_mode_keys.cursor_up);
+        copy_effective_action_field!(copy_mode_cursor_right, keybinds.copy_mode_keys.cursor_right);
+        copy_effective_action_field!(copy_mode_next_word, keybinds.copy_mode_keys.next_word);
+        copy_effective_action_field!(
+            copy_mode_previous_word,
+            keybinds.copy_mode_keys.previous_word
+        );
+        copy_effective_action_field!(
+            copy_mode_next_word_end,
+            keybinds.copy_mode_keys.next_word_end
+        );
+        copy_effective_action_field!(
+            copy_mode_next_big_word,
+            keybinds.copy_mode_keys.next_big_word
+        );
+        copy_effective_action_field!(
+            copy_mode_previous_big_word,
+            keybinds.copy_mode_keys.previous_big_word
+        );
+        copy_effective_action_field!(
+            copy_mode_next_big_word_end,
+            keybinds.copy_mode_keys.next_big_word_end
+        );
+        copy_effective_action_field!(
+            copy_mode_first_non_blank,
+            keybinds.copy_mode_keys.first_non_blank
+        );
+        copy_effective_action_field!(
+            copy_mode_start_of_line,
+            keybinds.copy_mode_keys.start_of_line
+        );
+        copy_effective_action_field!(copy_mode_end_of_line, keybinds.copy_mode_keys.end_of_line);
+        copy_effective_action_field!(
+            copy_mode_next_paragraph,
+            keybinds.copy_mode_keys.next_paragraph
+        );
+        copy_effective_action_field!(
+            copy_mode_previous_paragraph,
+            keybinds.copy_mode_keys.previous_paragraph
+        );
+        copy_effective_action_field!(
+            copy_mode_scrollback_top,
+            keybinds.copy_mode_keys.scrollback_top
+        );
+        copy_effective_action_field!(
+            copy_mode_scrollback_bottom,
+            keybinds.copy_mode_keys.scrollback_bottom
+        );
+        copy_effective_action_field!(copy_mode_page_up, keybinds.copy_mode_keys.page_up);
+        copy_effective_action_field!(copy_mode_page_down, keybinds.copy_mode_keys.page_down);
+        copy_effective_action_field!(copy_mode_half_page_up, keybinds.copy_mode_keys.half_page_up);
+        copy_effective_action_field!(
+            copy_mode_half_page_down,
+            keybinds.copy_mode_keys.half_page_down
+        );
+        copy_effective_action_field!(
+            copy_mode_begin_selection,
+            keybinds.copy_mode_keys.begin_selection
+        );
+        copy_effective_action_field!(copy_mode_select_line, keybinds.copy_mode_keys.select_line);
+        copy_effective_action_field!(
+            copy_mode_search_forward,
+            keybinds.copy_mode_keys.search_forward
+        );
+        copy_effective_action_field!(
+            copy_mode_search_backward,
+            keybinds.copy_mode_keys.search_backward
+        );
+        copy_effective_action_field!(copy_mode_search_next, keybinds.copy_mode_keys.search_next);
+        copy_effective_action_field!(
+            copy_mode_search_previous,
+            keybinds.copy_mode_keys.search_previous
+        );
         copy_user_field!(indexed);
 
         profile
@@ -1140,6 +1362,35 @@ impl Default for KeysConfig {
             resize_pane_up: BindingConfig::empty(),
             resize_pane_right: BindingConfig::empty(),
             toggle_sidebar: BindingConfig::one("prefix+b"),
+            copy_mode_cancel: BindingConfig::one("q"),
+            copy_mode_copy: BindingConfig::Many(vec!["y".into(), "enter".into()]),
+            copy_mode_cursor_left: BindingConfig::Many(vec!["h".into(), "left".into()]),
+            copy_mode_cursor_down: BindingConfig::Many(vec!["j".into(), "down".into()]),
+            copy_mode_cursor_up: BindingConfig::Many(vec!["k".into(), "up".into()]),
+            copy_mode_cursor_right: BindingConfig::Many(vec!["l".into(), "right".into()]),
+            copy_mode_next_word: BindingConfig::one("w"),
+            copy_mode_previous_word: BindingConfig::one("b"),
+            copy_mode_next_word_end: BindingConfig::one("e"),
+            copy_mode_next_big_word: BindingConfig::one("shift+w"),
+            copy_mode_previous_big_word: BindingConfig::one("shift+b"),
+            copy_mode_next_big_word_end: BindingConfig::one("shift+e"),
+            copy_mode_first_non_blank: BindingConfig::one("^"),
+            copy_mode_start_of_line: BindingConfig::Many(vec!["0".into(), "home".into()]),
+            copy_mode_end_of_line: BindingConfig::Many(vec!["$".into(), "end".into()]),
+            copy_mode_next_paragraph: BindingConfig::one("}"),
+            copy_mode_previous_paragraph: BindingConfig::one("{"),
+            copy_mode_scrollback_top: BindingConfig::one("g"),
+            copy_mode_scrollback_bottom: BindingConfig::one("shift+g"),
+            copy_mode_page_up: BindingConfig::Many(vec!["ctrl+b".into(), "pageup".into()]),
+            copy_mode_page_down: BindingConfig::Many(vec!["ctrl+f".into(), "pagedown".into()]),
+            copy_mode_half_page_up: BindingConfig::one("ctrl+u"),
+            copy_mode_half_page_down: BindingConfig::one("ctrl+d"),
+            copy_mode_begin_selection: BindingConfig::Many(vec!["v".into(), "space".into()]),
+            copy_mode_select_line: BindingConfig::one("shift+v"),
+            copy_mode_search_forward: BindingConfig::one("/"),
+            copy_mode_search_backward: BindingConfig::one("?"),
+            copy_mode_search_next: BindingConfig::one("n"),
+            copy_mode_search_previous: BindingConfig::one("shift+n"),
             indexed: IndexedKeysConfig::default(),
             command: Vec::new(),
             user_fields: BTreeSet::new(),
